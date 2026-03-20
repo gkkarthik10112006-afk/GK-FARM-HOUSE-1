@@ -3,54 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GK Farm House LEVEL 5</title>
+<title>GK Farm House ULTRA</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body { margin:0; font-family:Segoe UI; background:#0f172a; color:white; }
+body {
+    margin:0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg,#020617,#0f172a,#020617);
+    color:white;
+}
 
+/* Sidebar */
 .sidebar {
-    width:220px; height:100vh; position:fixed;
-    background:#020617; padding:20px;
+    width:230px;
+    height:100vh;
+    position:fixed;
+    background:rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    padding:20px;
+    border-right:1px solid rgba(255,255,255,0.1);
 }
-.sidebar h2 { color:#10b981; }
+.sidebar h2 {
+    color:#22c55e;
+    letter-spacing:1px;
+}
 .sidebar button {
-    width:100%; margin-top:10px;
-    padding:10px; border:none;
-    background:#1e293b; color:white; cursor:pointer;
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:rgba(255,255,255,0.08);
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+.sidebar button:hover {
+    background:#22c55e;
+    transform:scale(1.05);
 }
 
+/* Main */
 .main {
-    margin-left:240px; padding:20px;
+    margin-left:250px;
+    padding:25px;
 }
 
-.cards { display:flex; gap:10px; flex-wrap:wrap; }
+/* Cards */
+.cards {
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+}
 
 .card {
-    flex:1; padding:15px; border-radius:10px;
+    flex:1;
+    padding:20px;
+    border-radius:15px;
     text-align:center;
+    background:rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    box-shadow:0 0 25px rgba(0,0,0,0.3);
 }
-.profit{background:#065f46;}
-.income{background:#92400e;}
-.expense{background:#7f1d1d;}
 
+.profit { border-left:5px solid #10b981; }
+.income { border-left:5px solid #f59e0b; }
+.expense { border-left:5px solid #ef4444; }
+
+/* Inputs */
 input,select,button {
-    width:100%; padding:10px;
-    margin:5px 0; border:none;
-    border-radius:8px;
+    width:100%;
+    padding:12px;
+    margin:6px 0;
+    border:none;
+    border-radius:10px;
+    outline:none;
 }
 
+/* Sections */
 .section { display:none; }
 .active { display:block; }
 
-table { width:100%; margin-top:10px; }
-td,th { padding:8px; text-align:center; }
+/* Table */
+table {
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
+td,th {
+    padding:12px;
+    text-align:center;
+}
+tr {
+    background:rgba(255,255,255,0.03);
+}
+tr:hover {
+    background:rgba(255,255,255,0.08);
+}
 
-.alert {
-    background:red; padding:10px;
-    border-radius:8px; margin-top:10px;
+/* Buttons */
+.action-btn {
+    padding:6px 10px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+.edit { background:#3b82f6; }
+.delete { background:#ef4444; }
+
+.export-btn {
+    margin-top:15px;
+    background:#22c55e;
+    cursor:pointer;
 }
 </style>
 </head>
@@ -61,7 +128,7 @@ td,th { padding:8px; text-align:center; }
     <h2>GK FARM</h2>
     <button onclick="show('dashboard')">Dashboard</button>
     <button onclick="show('entries')">Entries</button>
-    <button onclick="show('analytics')">Analytics</button>
+    <button onclick="downloadPDF()">Export PDF</button>
 </div>
 
 <div class="main">
@@ -75,43 +142,40 @@ td,th { padding:8px; text-align:center; }
     </div>
 
     <canvas id="mainChart"></canvas>
-    <div id="alertBox"></div>
 </div>
 
 <!-- ENTRIES -->
 <div id="entries" class="section">
     <h3>Add Entry</h3>
+
     <input type="date" id="date">
     <select id="type">
         <option value="income">Income</option>
         <option value="expense">Expense</option>
     </select>
+
     <input type="text" id="particulars" placeholder="Particulars">
-    <input type="number" id="qty" placeholder="Egg Qty">
+    <input type="number" id="qty" placeholder="Qty">
     <input type="number" id="price" placeholder="Price">
     <input type="number" id="amount" readonly placeholder="Auto Amount">
-    <button onclick="addEntry()">Add</button>
+
+    <button onclick="addEntry()">Add Entry</button>
 
     <table>
         <thead>
         <tr>
-            <th>Date</th><th>Type</th><th>Part</th><th>Amt</th><th>X</th>
+            <th>Date</th><th>Type</th><th>Part</th><th>Amt</th><th>Action</th>
         </tr>
         </thead>
         <tbody id="table"></tbody>
     </table>
 </div>
 
-<!-- ANALYTICS -->
-<div id="analytics" class="section">
-    <h3>Monthly Analytics</h3>
-    <canvas id="monthChart"></canvas>
-</div>
-
 </div>
 
 <script>
 let entries = JSON.parse(localStorage.getItem("entries")) || [];
+let editId = null;
 
 qty.oninput = calc;
 price.oninput = calc;
@@ -126,15 +190,38 @@ function show(sec){
 }
 
 function addEntry(){
-    let e = {
-        id:Date.now(),
-        date:date.value,
-        type:type.value,
-        part:particulars.value,
-        amount:Number(amount.value)
-    };
-    entries.push(e);
+
+    if(editId){
+        entries = entries.map(e=>{
+            if(e.id===editId){
+                e.date=date.value;
+                e.type=type.value;
+                e.part=particulars.value;
+                e.amount=Number(amount.value);
+            }
+            return e;
+        });
+        editId=null;
+    } else {
+        entries.push({
+            id:Date.now(),
+            date:date.value,
+            type:type.value,
+            part:particulars.value,
+            amount:Number(amount.value)
+        });
+    }
+
     save();
+}
+
+function editEntry(id){
+    let e = entries.find(x=>x.id===id);
+    date.value=e.date;
+    type.value=e.type;
+    particulars.value=e.part;
+    amount.value=e.amount;
+    editId=id;
 }
 
 function deleteEntry(id){
@@ -150,8 +237,6 @@ function save(){
 function update(){
 
     let inc=0, exp=0;
-    let daily={}, monthly={};
-
     table.innerHTML="";
 
     entries.forEach(e=>{
@@ -159,24 +244,16 @@ function update(){
         if(e.type=="income") inc+=e.amount;
         else exp+=e.amount;
 
-        // DAILY
-        if(!daily[e.date]) daily[e.date]={i:0,e:0};
-        if(e.type=="income") daily[e.date].i+=e.amount;
-        else daily[e.date].e+=e.amount;
-
-        // MONTHLY
-        let m = e.date.slice(0,7);
-        if(!monthly[m]) monthly[m]={i:0,e:0};
-        if(e.type=="income") monthly[m].i+=e.amount;
-        else monthly[m].e+=e.amount;
-
         table.innerHTML+=`
         <tr>
         <td>${e.date}</td>
         <td>${e.type}</td>
         <td>${e.part}</td>
-        <td>${e.amount}</td>
-        <td><button onclick="deleteEntry(${e.id})">X</button></td>
+        <td>₹${e.amount}</td>
+        <td>
+            <button class="action-btn edit" onclick="editEntry(${e.id})">✏</button>
+            <button class="action-btn delete" onclick="deleteEntry(${e.id})">🗑</button>
+        </td>
         </tr>`;
     });
 
@@ -184,40 +261,17 @@ function update(){
     expense.innerText="₹"+exp;
     profit.innerText="₹"+(inc-exp);
 
-    // ALERT SYSTEM
-    if(exp > inc){
-        alertBox.innerHTML = `<div class="alert">⚠ Loss Alert! Expenses exceed income</div>`;
-    } else {
-        alertBox.innerHTML = "";
-    }
-
-    // DAILY CHART
-    mainChart.data.labels = Object.keys(daily);
-    mainChart.data.datasets[0].data = Object.values(daily).map(d=>d.i);
-    mainChart.data.datasets[1].data = Object.values(daily).map(d=>d.e);
+    mainChart.data.labels=["Income","Expense"];
+    mainChart.data.datasets[0].data=[inc,exp];
     mainChart.update();
-
-    // MONTHLY CHART
-    monthChart.data.labels = Object.keys(monthly);
-    monthChart.data.datasets[0].data = Object.values(monthly).map(d=>d.i);
-    monthChart.data.datasets[1].data = Object.values(monthly).map(d=>d.e);
-    monthChart.update();
 }
 
 let mainChart = new Chart(document.getElementById("mainChart"),{
     type:'bar',
-    data:{labels:[],datasets:[
-        {label:"Income",data:[],backgroundColor:"green"},
-        {label:"Expense",data:[],backgroundColor:"red"}
-    ]}
-});
-
-let monthChart = new Chart(document.getElementById("monthChart"),{
-    type:'line',
-    data:{labels:[],datasets:[
-        {label:"Income",data:[],borderColor:"green"},
-        {label:"Expense",data:[],borderColor:"red"}
-    ]}
+    data:{
+        labels:[],
+        datasets:[{data:[],backgroundColor:["green","red"]}]
+    }
 });
 
 update();
@@ -227,15 +281,18 @@ function downloadPDF(){
     const {jsPDF}=window.jspdf;
     let doc=new jsPDF();
 
-    doc.text("GK FARM REPORT",20,20);
+    doc.setFontSize(18);
+    doc.text("GK FARM HOUSE REPORT",20,20);
 
     let y=40;
+
     entries.forEach(e=>{
-        doc.text(`${e.date} | ${e.type} | ₹${e.amount}`,20,y);
+        doc.setFontSize(12);
+        doc.text(`${e.date} | ${e.type} | ${e.part} | ₹${e.amount}`,20,y);
         y+=10;
     });
 
-    doc.save("report.pdf");
+    doc.save("GK_Farm_Report.pdf");
 }
 </script>
 
