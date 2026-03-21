@@ -26,10 +26,7 @@ body {
     padding:20px;
     border-right:1px solid rgba(255,255,255,0.1);
 }
-.sidebar h2 {
-    color:#22c55e;
-    letter-spacing:1px;
-}
+.sidebar h2 { color:#22c55e; }
 .sidebar button {
     width:100%;
     margin-top:12px;
@@ -39,7 +36,6 @@ body {
     background:rgba(255,255,255,0.08);
     color:white;
     cursor:pointer;
-    transition:0.3s;
 }
 .sidebar button:hover {
     background:#22c55e;
@@ -47,28 +43,17 @@ body {
 }
 
 /* Main */
-.main {
-    margin-left:250px;
-    padding:25px;
-}
+.main { margin-left:250px; padding:25px; }
 
 /* Cards */
-.cards {
-    display:flex;
-    gap:20px;
-    flex-wrap:wrap;
-}
-
+.cards { display:flex; gap:20px; flex-wrap:wrap; }
 .card {
     flex:1;
     padding:20px;
     border-radius:15px;
     text-align:center;
     background:rgba(255,255,255,0.05);
-    backdrop-filter: blur(20px);
-    box-shadow:0 0 25px rgba(0,0,0,0.3);
 }
-
 .profit { border-left:5px solid #10b981; }
 .income { border-left:5px solid #f59e0b; }
 .expense { border-left:5px solid #ef4444; }
@@ -80,7 +65,6 @@ input,select,button {
     margin:6px 0;
     border:none;
     border-radius:10px;
-    outline:none;
 }
 
 /* Sections */
@@ -88,36 +72,15 @@ input,select,button {
 .active { display:block; }
 
 /* Table */
-table {
-    width:100%;
-    margin-top:15px;
-    border-collapse:collapse;
-}
-td,th {
-    padding:12px;
-    text-align:center;
-}
-tr {
-    background:rgba(255,255,255,0.03);
-}
-tr:hover {
-    background:rgba(255,255,255,0.08);
-}
+table { width:100%; margin-top:15px; }
+td,th { padding:12px; text-align:center; }
 
-/* Buttons */
-.action-btn {
-    padding:6px 10px;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-}
-.edit { background:#3b82f6; }
-.delete { background:#ef4444; }
-
-.export-btn {
-    margin-top:15px;
-    background:#22c55e;
-    cursor:pointer;
+/* Bird Cards */
+.bird-card {
+    background:rgba(255,255,255,0.05);
+    padding:15px;
+    border-radius:12px;
+    margin-top:10px;
 }
 </style>
 </head>
@@ -128,6 +91,10 @@ tr:hover {
     <h2>GK FARM</h2>
     <button onclick="show('dashboard')">Dashboard</button>
     <button onclick="show('entries')">Entries</button>
+
+    <!-- NEW BUTTON -->
+    <button onclick="show('bird')">Bird Count</button>
+
     <button onclick="downloadPDF()">Export PDF</button>
 </div>
 
@@ -169,6 +136,33 @@ tr:hover {
         </thead>
         <tbody id="table"></tbody>
     </table>
+</div>
+
+<!-- 🔥 BIRD COUNT SECTION -->
+<div id="bird" class="section">
+    <h2 style="color:#22c55e;">Bird Count</h2>
+
+    <div class="bird-card">
+        <label>Total Birds</label>
+        <input type="number" id="totalBirds">
+    </div>
+
+    <div class="bird-card">
+        <label>Total Chicks</label>
+        <input type="number" id="totalChicks">
+    </div>
+
+    <div class="bird-card">
+        <label>Laying Eggs</label>
+        <input type="number" id="laying" oninput="calcBirds()">
+    </div>
+
+    <div class="bird-card">
+        <label>Not Laying Eggs</label>
+        <input type="number" id="notLaying" readonly>
+    </div>
+
+    <button onclick="saveBird()">Save Bird Data</button>
 </div>
 
 </div>
@@ -240,7 +234,6 @@ function update(){
     table.innerHTML="";
 
     entries.forEach(e=>{
-
         if(e.type=="income") inc+=e.amount;
         else exp+=e.amount;
 
@@ -251,8 +244,8 @@ function update(){
         <td>${e.part}</td>
         <td>₹${e.amount}</td>
         <td>
-            <button class="action-btn edit" onclick="editEntry(${e.id})">✏</button>
-            <button class="action-btn delete" onclick="deleteEntry(${e.id})">🗑</button>
+            <button onclick="editEntry(${e.id})">✏</button>
+            <button onclick="deleteEntry(${e.id})">🗑</button>
         </td>
         </tr>`;
     });
@@ -276,18 +269,47 @@ let mainChart = new Chart(document.getElementById("mainChart"),{
 
 update();
 
+/* 🐔 BIRD LOGIC */
+function calcBirds(){
+    let total = Number(totalBirds.value) || 0;
+    let layingVal = Number(laying.value) || 0;
+    let notLay = total - layingVal;
+    if(notLay < 0) notLay = 0;
+    notLaying.value = notLay;
+}
+
+function saveBird(){
+    let data = {
+        total: totalBirds.value,
+        chicks: totalChicks.value,
+        laying: laying.value,
+        notLaying: notLaying.value
+    };
+    localStorage.setItem("birds", JSON.stringify(data));
+    alert("Saved!");
+}
+
+function loadBird(){
+    let data = JSON.parse(localStorage.getItem("birds"));
+    if(data){
+        totalBirds.value=data.total;
+        totalChicks.value=data.chicks;
+        laying.value=data.laying;
+        notLaying.value=data.notLaying;
+    }
+}
+
+loadBird();
+
 /* PDF */
 function downloadPDF(){
     const {jsPDF}=window.jspdf;
     let doc=new jsPDF();
 
-    doc.setFontSize(18);
-    doc.text("GK FARM HOUSE REPORT",20,20);
+    doc.text("GK FARM REPORT",20,20);
 
-    let y=40;
-
+    let y=30;
     entries.forEach(e=>{
-        doc.setFontSize(12);
         doc.text(`${e.date} | ${e.type} | ${e.part} | ₹${e.amount}`,20,y);
         y+=10;
     });
